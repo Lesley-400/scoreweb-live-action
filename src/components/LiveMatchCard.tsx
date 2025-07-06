@@ -84,7 +84,7 @@ const LiveMatchCard: React.FC<LiveMatchCardProps> = ({
                 alt={`${awayTeam.name} logo`} 
                 className="w-6 h-6"
                 onError={(e) => {
-                  (e.target as HTMLImageImage).src = '/placeholder.svg';
+                  (e.target as HTMLImageElement).src = '/placeholder.svg';
                 }}
               />
               <span className="font-semibold truncate">{awayTeam.name}</span>
