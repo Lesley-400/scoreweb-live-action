@@ -1,68 +1,16 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LiveMatchCard from '../components/LiveMatchCard';
 import FixtureCard from '../components/FixtureCard';
 import NewsCard from '../components/NewsCard';
-import { Circle, Calendar, Newspaper } from 'lucide-react';
+import LoadingSpinner from '../components/LoadingSpinner';
+import ErrorMessage from '../components/ErrorMessage';
+import { Calendar, Newspaper } from 'lucide-react';
+import { useLiveMatches, useUpcomingFixtures } from '../hooks/useSportsData';
 
-// Mock data for demonstration
-const liveMatches = [
-  {
-    homeTeam: { name: 'Manchester United', logo: '🔴', score: 2 },
-    awayTeam: { name: 'Arsenal', logo: '🔴', score: 1 },
-    time: '60\'',
-    status: 'Second Half',
-    league: { name: 'Premier League', logo: '⚽' }
-  },
-  {
-    homeTeam: { name: 'Manchester City', logo: '🔵', score: 0 },
-    awayTeam: { name: 'Chelsea', logo: '🔵', score: 0 },
-    time: '35\'',
-    status: 'First Half',
-    league: { name: 'Premier League', logo: '⚽' }
-  },
-  {
-    homeTeam: { name: 'Liverpool', logo: '🔴', score: 3 },
-    awayTeam: { name: 'Tottenham', logo: '⚪', score: 1 },
-    time: '72\'',
-    status: 'Second Half',
-    league: { name: 'Premier League', logo: '⚽' }
-  }
-];
-
-const fixtures = [
-  {
-    homeTeam: { name: 'Real Madrid', logo: '⚪' },
-    awayTeam: { name: 'Barcelona', logo: '🔵' },
-    date: 'Tomorrow',
-    time: '20:00',
-    league: 'La Liga | Matchday 30'
-  },
-  {
-    homeTeam: { name: 'Inter Milan', logo: '🔵' },
-    awayTeam: { name: 'Juventus', logo: '⚫' },
-    date: 'Tomorrow',
-    time: '19:45',
-    league: 'Serie A | Matchday 28'
-  },
-  {
-    homeTeam: { name: 'Bayern Munich', logo: '🔴' },
-    awayTeam: { name: 'Dortmund', logo: '🟡' },
-    date: 'Tomorrow',
-    time: '17:30',
-    league: 'Bundesliga | Matchday 25'
-  },
-  {
-    homeTeam: { name: 'Paris SG', logo: '🔵' },
-    awayTeam: { name: 'Lyon', logo: '🔵' },
-    date: 'This Week',
-    time: '20:00',
-    league: 'Ligue 1 | Matchday 27'
-  }
-];
-
+// Mock news data (since we're focusing on sports data for now)
 const newsArticles = [
   {
     title: 'Premier League Title Race Heats Up',
@@ -89,16 +37,21 @@ const newsArticles = [
 
 const Index = () => {
   const [selectedSport, setSelectedSport] = useState('football');
-  const [selectedDate, setSelectedDate] = useState('today');
-
-  useEffect(() => {
-    // Simulate live score updates
-    const interval = setInterval(() => {
-      console.log('Updating live scores...');
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, []);
+  const [selectedDate, setSelectedDate] = useState(7);
+  
+  const { 
+    data: liveMatches, 
+    isLoading: liveLoading, 
+    error: liveError, 
+    refetch: refetchLive 
+  } = useLiveMatches();
+  
+  const { 
+    data: fixtures, 
+    isLoading: fixturesLoading, 
+    error: fixturesError, 
+    refetch: refetchFixtures 
+  } = useUpcomingFixtures(selectedDate);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -124,11 +77,34 @@ const Index = () => {
             </select>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {liveMatches.map((match, index) => (
-              <LiveMatchCard key={index} {...match} />
-            ))}
-          </div>
+          {liveLoading && <LoadingSpinner />}
+          {liveError && (
+            <ErrorMessage 
+              message="Failed to load live matches. Please try again." 
+              onRetry={refetchLive}
+            />
+          )}
+          {liveMatches && liveMatches.length === 0 && !liveLoading && (
+            <div className="text-center py-8 text-gray-600">
+              <p>No live matches at the moment.</p>
+              <p className="text-sm mt-2">Check back later for live updates!</p>
+            </div>
+          )}
+          {liveMatches && liveMatches.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {liveMatches.slice(0, 6).map((match) => (
+                <LiveMatchCard 
+                  key={match.id} 
+                  homeTeam={match.homeTeam}
+                  awayTeam={match.awayTeam}
+                  minute={match.minute}
+                  status={match.status}
+                  competition={match.competition}
+                  utcDate={match.utcDate}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Fixtures Section */}
@@ -140,21 +116,41 @@ const Index = () => {
             </h2>
             <select 
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              onChange={(e) => setSelectedDate(Number(e.target.value))}
               className="px-3 py-2 border rounded-md bg-white"
             >
-              <option value="today">Today</option>
-              <option value="tomorrow">Tomorrow</option>
-              <option value="week">This Week</option>
-              <option value="month">This Month</option>
+              <option value={1}>Today</option>
+              <option value={2}>Tomorrow</option>
+              <option value={7}>This Week</option>
+              <option value={30}>This Month</option>
             </select>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {fixtures.map((fixture, index) => (
-              <FixtureCard key={index} {...fixture} />
-            ))}
-          </div>
+          {fixturesLoading && <LoadingSpinner />}
+          {fixturesError && (
+            <ErrorMessage 
+              message="Failed to load fixtures. Please try again." 
+              onRetry={refetchFixtures}
+            />
+          )}
+          {fixtures && fixtures.length === 0 && !fixturesLoading && (
+            <div className="text-center py-8 text-gray-600">
+              <p>No fixtures scheduled for the selected period.</p>
+            </div>
+          )}
+          {fixtures && fixtures.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {fixtures.slice(0, 8).map((fixture) => (
+                <FixtureCard 
+                  key={fixture.id} 
+                  homeTeam={fixture.homeTeam}
+                  awayTeam={fixture.awayTeam}
+                  utcDate={fixture.utcDate}
+                  competition={fixture.competition}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* News Section */}
