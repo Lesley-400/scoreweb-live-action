@@ -1,6 +1,5 @@
-
 const API_BASE_URL = 'https://api.football-data.org/v4';
-const API_KEY = 'YOUR_API_KEY'; //336920e9ddcd460ea904b2ab98b1164a
+const API_KEY = '336920e9ddcd460ea904b2ab98b1164a';
 
 export interface Match {
   id: number;
